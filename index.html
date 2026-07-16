@@ -5,47 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EyePort</title>
     <style>
-        body { 
-            margin: 0; background: #000; color: #fff; font-family: sans-serif; 
-            text-align: center; display: flex; flex-direction: column; 
-            height: 100vh; overflow: hidden;
-            touch-action: none; user-select: none; -webkit-user-select: none;
-        }
-        #init-btn {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #111; color: #fff; font-size: 28px; font-weight: bold;
-            border: none; z-index: 9999; cursor: pointer; padding: 20px; box-sizing: border-box;
-        }
-        .touch-zone {
-            flex: 1; display: flex; justify-content: center; align-items: center;
-            font-size: 32px; font-weight: bold; box-sizing: border-box; text-align: center;
-            padding: 20px; width: 100%;
-        }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; text-align: center; display: flex; flex-direction: column; height: 100vh; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+        #init-btn { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #111; color: #fff; font-size: 28px; font-weight: bold; border: none; z-index: 9999; cursor: pointer; padding: 20px; box-sizing: border-box; }
+        .touch-zone { flex: 1; display: flex; justify-content: center; align-items: center; font-size: 32px; font-weight: bold; box-sizing: border-box; text-align: center; padding: 20px; width: 100%; }
         #zone-single { background: #1a1a1a; border-bottom: 4px solid #333; }
         #zone-continuous { background: #2a1010; }
         #zone-continuous.active { background: #801010; }
-        
-        #status-area {
-            position: fixed; top: 35%; left: 5%; width: 90%;
-            background: rgba(0,0,0,0.9); color: #00ffcc; font-size: 24px;
-            font-weight: bold; padding: 20px; box-sizing: border-box;
-            border-radius: 10px; pointer-events: none; min-height: 150px;
-            display: flex; justify-content: center; align-items: center; word-break: keep-all;
-        }
+        #status-area { position: fixed; top: 35%; left: 5%; width: 90%; background: rgba(0,0,0,0.9); color: #00ffcc; font-size: 24px; font-weight: bold; padding: 20px; box-sizing: border-box; border-radius: 10px; pointer-events: none; min-height: 150px; display: flex; justify-content: center; align-items: center; word-break: keep-all; }
     </style>
 </head>
 <body>
 
     <button id="init-btn">EyePort 시작<br><br>화면을 터치하세요.</button>
-
     <div id="zone-single" class="touch-zone">주변 탐색</div>
     <div id="zone-continuous" class="touch-zone">실시간 탐색 끔</div>
-    
     <div id="status-area">EyePort 준비 완료</div>
 
     <script>
-        // ⚠️ 방금 새로 배포한 구글 웹 앱 /exec 주소로 교체하세요.
-        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzNRJ-EATvzTWMsyC3v1-5ytToYnzXt0K61FuIK3UiagxxLjf-7Kt5OnG1i23wpRxoCXg/exec";
+        // ⚠️ 방금 새로 배포한 구글 웹 앱 /exec 주소로 정확히 교체하세요.
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyOpm-X2kd3mUGx4Qq63WfhU7ZCnAsiyT7_Oc-AInAdaBnDZKXSOfCybrDQs8WG8WyBGQ/exec";
 
         const initBtn = document.getElementById('init-btn');
         const zoneSingle = document.getElementById('zone-single');
@@ -73,7 +51,7 @@
         initBtn.addEventListener('click', async () => {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment", width: 640, height: 480 } 
+                    video: { facingMode: "environment", width: 400, height: 300 } // 해상도 최적화 복구
                 });
                 hiddenVideo.srcObject = stream;
                 await hiddenVideo.play();
@@ -89,35 +67,31 @@
             if (!isCameraReady) return;
             
             const canvas = document.createElement('canvas');
-            canvas.width = hiddenVideo.videoWidth || 640;
-            canvas.height = hiddenVideo.videoHeight || 480;
+            // 💡 데이터 경량화를 위해 400x300 사이즈로 캡처
+            canvas.width = 400;
+            canvas.height = 300;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
             
-            // 💡 파일 용량 압축 및 품질 최적화 (0.4)로 변경하여 통신 안정성 확보
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.4);
+            // 압축률을 0.3으로 낮춰 텍스트 깨짐 현상 완벽 조율
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.3);
             const base64Str = dataUrl.split(',')[1];
 
             try {
-                // 💡 완벽한 JSON 문자열 전송 포맷으로 강제 바인딩
-                const response = await fetch(GAS_WEB_APP_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'text/plain' // 구글 CORS 통과용 프리플라이트 우회
-                    },
-                    body: JSON.stringify({ image: base64Str })
-                });
+                // 💡 안전한 GET 파라미터 전송 방식으로 교체
+                const targetUrl = GAS_WEB_APP_URL + "?image=" + encodeURIComponent(base64Str);
                 
+                const response = await fetch(targetUrl, { method: 'GET' });
                 const data = await response.json();
                 
                 if (data.description) {
                     statusArea.innerText = data.description;
                     speak(data.description);
                 } else if (data.error) {
-                    statusArea.innerText = "서버 측 오류: " + data.error;
+                    statusArea.innerText = "오류: " + data.error;
                 }
             } catch (err) {
-                statusArea.innerText = "데이터 전송 중 오류 발생";
+                statusArea.innerText = "네트워크 송신 오류";
             } finally {
                 isProcessing = false;
             }
@@ -139,7 +113,6 @@
                 isContinuousMode = true;
                 zoneContinuous.classList.add('active');
                 zoneContinuous.innerText = "실시간 탐색 중";
-                
                 isProcessing = true;
                 captureAndAnalyze();
 
@@ -147,7 +120,7 @@
                     if (isProcessing) return;
                     isProcessing = true;
                     captureAndAnalyze();
-                }, 4000);
+                }, 4500);
             } else {
                 isContinuousMode = false;
                 zoneContinuous.classList.remove('active');
